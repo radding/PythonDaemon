@@ -6,6 +6,7 @@
 
 import sys, os, time, atexit
 from signal import SIGTERM
+import argparse
 
 ## Defines the Daemon base class
 #
@@ -17,7 +18,6 @@ class Daemon:
        
         Usage: subclass the Daemon class and override the run() method
         """
-
         ## Initializes the deamon
         # \param pidfile the file containing the PID
         # \param stdin the stdin for the deamon
@@ -164,3 +164,46 @@ class Daemon:
                 daemonized by start() or restart().
                 """
                 raise NotImplemented("Run is not implement in {0}".format(self.__class__.__name__))
+
+        def routeCmd(self, cmd):
+                cmds = {
+                        "start": self.start,
+                        "stop": self.stop,
+                        "restart": self.restart,
+                }
+                try:
+                        cmds[cmd]()
+                        pass
+                except KeyError:
+                        print( "Unknown command")
+                        print ("usage: {{ {} }}".format(" | ".join(cmds.keys())))
+                        sys.exit(2)
+                        pass
+                pass
+        
+        ## Add CLI argument
+        @classmethod
+        def AddArg(cls, args):
+                args.add_argument("-p", "--pid", help="The pid file")
+                args.add_argument("-i", "--stdin", help="The stdin to write to (defaults to /dev/null)", default="/dev/null")
+                args.add_argument("-o", "--stdout", help="The stdout to write to (defaults to /dev/null)", default="/dev/null")
+                args.add_argument("-e", "--stderr", help="The stderr to write to (defaults to /dev/null)", default="/dev/null")
+                return args
+        
+        ##Build Arguments for constructor
+        @classmethod
+        def Construct(cls, args):
+                args = cls.AddArg(args)
+                args.parse_args(sys.argv)
+                return {"pidfile": args.pid, "stdin": args.stdin, "stdout": args.stdout, "stderr": args.stderr}
+
+        @classmethod
+        def Go(cls):
+                if __name__ == '__main__':
+                        args = argparse.ArgumentParser(description=cls.__doc__)
+                        args.add_argument("cmd")
+                        kwargs = cls.Construct(args)
+                        daemon = cls(**kwargs)
+                        daemon.routeCmd(args.cmd)
+                        pass
+                pass
